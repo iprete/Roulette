@@ -18,16 +18,29 @@
         <button id="normBtn" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">정규화</button>
         <button id="suggestBtn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">확률 추천</button>
         <button id="calcBtn" class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600">계산</button>
-      </div>
-      <section id="msg" class="text-sm"></section>
-      <progress id="progressBar" max="100" value="0" class="w-full h-2 bg-gray-200 rounded" style="display:none;"></progress>
-      <div id="progressText" class="text-sm text-gray-600" style="display:none;"></div><div class="overflow-x-auto">
+      </div><section id="msg" class="text-sm"></section>
+  <progress id="progressBar" max="100" value="0" class="w-full h-2 bg-gray-200 rounded" style="display:none;"></progress>
+  <div id="progressText" class="text-sm text-gray-600" style="display:none;"></div>
+
+  <div class="overflow-x-auto">
     <table id="dataTable" class="w-full text-sm table-auto border-collapse">
-      <thead><tr class="bg-gray-200"><th class="border px-2 py-1">값</th><th class="border px-2 py-1">확률(%)</th><th class="border px-2 py-1">고정</th><th class="border px-2 py-1">삭제</th></tr></thead>
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border px-2 py-1">값</th>
+          <th class="border px-2 py-1">확률(%)</th>
+          <th class="border px-2 py-1">고정</th>
+          <th class="border px-2 py-1">삭제</th>
+        </tr>
+      </thead>
       <tbody>
         <tr>
           <td class="border px-2 py-1"><input type="number" value="0" class="w-20 border rounded p-1 value-cell"></td>
-          <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.01" value="10.00" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+          <td class="border px-2 py-1">
+            <div class="flex items-center space-x-1">
+              <input type="number" step="0.01" value="10.00" class="w-20 border rounded p-1 prob-cell">
+              <button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button>
+            </div>
+          </td>
           <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell" checked></td>
           <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>
         </tr>
@@ -39,7 +52,12 @@
     <div><label class="block text-sm font-medium">목표 EV</label><input id="targetEV" type="number" value="4.85" step="0.01" class="border rounded p-1 w-24"></div>
     <div><label class="block text-sm font-medium">허용 오차</label><input id="tolerance" type="number" value="0.15" step="0.01" class="border rounded p-1 w-24"></div>
   </div>
-  <div class="flex items-center space-x-2"><div id="evDisplay" class="text-sm text-gray-700"></div><button id="copyAllBtn" class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">전체 복사</button></div>
+
+  <div class="flex items-center space-x-4">
+    <div id="evDisplay" class="text-sm text-gray-700"></div>
+    <div id="sumDisplay" class="text-sm text-gray-700"></div>
+    <button id="copyAllBtn" class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">전체 복사</button>
+  </div>
 </main>
 
   </div>  <script>
@@ -47,17 +65,25 @@
     const msgEl = document.getElementById('msg');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
+    const evDisplay = document.getElementById('evDisplay');
+    const sumDisplay = document.getElementById('sumDisplay');
 
     document.getElementById('addRow').onclick = () => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="border px-2 py-1"><input type="number" class="w-20 border rounded p-1 value-cell"></td>
-        <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.01" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+        <td class="border px-2 py-1">
+          <div class="flex items-center space-x-1">
+            <input type="number" step="0.01" class="w-20 border rounded p-1 prob-cell">
+            <button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button>
+          </div>
+        </td>
         <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell"></td>
         <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;
       tbody.appendChild(tr);
+      attachProbListeners();
     };
-    tbody.onclick = e => { if(e.target.classList.contains('delRow')) e.target.closest('tr').remove(); };
+    tbody.onclick = e => { if(e.target.classList.contains('delRow')) e.target.closest('tr').remove(); updateSum(); };
 
     function showMsg(text, isError = true) {
       msgEl.textContent = text;
@@ -68,47 +94,123 @@
       let sum = 0;
       document.querySelectorAll('.prob-cell').forEach(i => sum += parseFloat(i.value) || 0);
       if (sum <= 0) { showMsg('정규화할 확률이 없습니다.'); return; }
-      document.querySelectorAll('.prob-cell').forEach(i => { i.value = ((parseFloat(i.value)||0)/sum*100).toFixed(2); });
+      document.querySelectorAll('.prob-cell').forEach(i => {
+        i.value = ((parseFloat(i.value) || 0) / sum * 100).toFixed(2);
+      });
       showMsg('정규화 완료', false);
+      updateAll();
     };
 
     function geneticOptimize(vals, p0, targetEV, popSize, gens, tol) {
-      let pop = Array.from({ length: popSize }, () => Math.random()*0.98+0.01);
-      let bestQ=pop[0],bestDiff=Infinity;
-      for(let g=0;g<gens;g++){
-        const fitness=pop.map(q=>{ const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length)); const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0); return{q,ev,diff:Math.abs(ev-targetEV)}; }).sort((a,b)=>a.diff-b.diff);
-        if(fitness[0].diff<bestDiff){bestDiff=fitness[0].diff;bestQ=fitness[0].q;} if(bestDiff<=tol) break;
-        const pct=Math.round((g+1)/gens*100);
-        progressBar.style.display='block';progressText.style.display='block';progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`;
-        const survivors=fitness.slice(0,Math.ceil(popSize*0.2)).map(f=>f.q);
-        pop=[];while(pop.length<popSize){let p1=survivors[Math.floor(Math.random()*survivors.length)],p2=survivors[Math.floor(Math.random()*survivors.length)],child=(p1+p2)/2; if(Math.random()<0.1)child+=Math.random()*0.2-0.1; child=Math.min(Math.max(child,0.0001),0.9999);pop.push(child);} }
+      let pop = Array.from({ length: popSize }, () => Math.random() * 0.98 + 0.01);
+      let bestQ = pop[0], bestDiff = Infinity;
+      for (let g = 0; g < gens; g++) {
+        const fitness = pop.map(q => {
+          const a = (1 - p0) * (1 - q) / (1 - Math.pow(q, vals.length));
+          const ev = vals.reduce((s, v, i) => s + a * Math.pow(q, i) * v, 0);
+          return { q, ev, diff: Math.abs(ev - targetEV) };
+        }).sort((a, b) => a.diff - b.diff);
+        if (fitness[0].diff < bestDiff) {
+          bestDiff = fitness[0].diff;
+          bestQ = fitness[0].q;
+        }
+        if (bestDiff <= tol) break;
+        const pct = Math.round((g + 1) / gens * 100);
+        progressBar.style.display = 'block';
+        progressText.style.display = 'block';
+        progressBar.value = pct;
+        progressText.textContent = `진행도: ${g + 1}/${gens}`;
+        const survivors = fitness.slice(0, Math.ceil(popSize * 0.2)).map(f => f.q);
+        pop = [];
+        while (pop.length < popSize) {
+          let p1 = survivors[Math.floor(Math.random() * survivors.length)];
+          let p2 = survivors[Math.floor(Math.random() * survivors.length)];
+          let child = (p1 + p2) / 2;
+          if (Math.random() < 0.1) child += (Math.random() * 0.2 - 0.1);
+          child = Math.min(Math.max(child, 0.0001), 0.9999);
+          pop.push(child);
+        }
+      }
       return bestQ;
     }
 
     function performSuggest(popSize, gens) {
-      showMsg('');document.getElementById('evDisplay').textContent='';
-      const targetEV=parseFloat(document.getElementById('targetEV').value), tol=parseFloat(document.getElementById('tolerance').value);
-      const rows=[...tbody.querySelectorAll('tr')], fixed=[],vals=[];
-      rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value),p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100; if(tr.querySelector('.fixed-cell').checked)fixed.push({v,p});else vals.push(v);});
-      const p0=(fixed.find(r=>r.v===0)?.p)||0;
-      if(!vals.length){showMsg('추천할 값이 없습니다.');return;}
-      const q=geneticOptimize(vals,p0,targetEV,popSize,gens,tol);
-      const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));
-      let prefs=vals.map((v,i)=>parseFloat((a*Math.pow(q,i)*100).toFixed(2)));
-      const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100;
-      let sumP=prefs.reduce((s,p)=>s+p,0);
-      const adjust=100-fixedSum-sumP;
-      if(prefs.length)prefs[0]+=adjust;
-      let idx=0;rows.forEach(tr=>{if(!tr.querySelector('.fixed-cell').checked)tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(2);});
-      progressBar.style.display='none';progressText.style.display='none';calculate();showMsg('추천 완료',false);
+      showMsg('');
+      evDisplay.textContent = '';
+      const targetEV = parseFloat(document.getElementById('targetEV').value);
+      const tol = parseFloat(document.getElementById('tolerance').value);
+      const rows = [...tbody.querySelectorAll('tr')];
+      const fixed = [], vals = [];
+      rows.forEach(tr => {
+        const v = parseFloat(tr.querySelector('.value-cell').value);
+        const p = (parseFloat(tr.querySelector('.prob-cell').value) || 0) / 100;
+        if (tr.querySelector('.fixed-cell').checked) fixed.push({ v, p });
+        else vals.push(v);
+      });
+      const p0 = (fixed.find(r => r.v === 0)?.p) || 0;
+      if (!vals.length) { showMsg('추천할 값이 없습니다.'); return; }
+      const q = geneticOptimize(vals, p0, targetEV, popSize, gens, tol);
+      const a = (1 - p0) * (1 - q) / (1 - Math.pow(q, vals.length));
+      let prefs = vals.map((v, i) => parseFloat((a * Math.pow(q, i) * 100).toFixed(2)));
+      const fixedSum = fixed.reduce((s, r) => s + r.p, 0) * 100;
+      let sumP = prefs.reduce((s, p) => s + p, 0);
+      const adjust = 100 - fixedSum - sumP;
+      if (prefs.length) prefs[0] += adjust;
+      let idx = 0;
+      rows.forEach(tr => {
+        if (!tr.querySelector('.fixed-cell').checked) {
+          tr.querySelector('.prob-cell').value = prefs[idx++].toFixed(2);
+        }
+      });
+      progressBar.style.display = 'none'; progressText.style.display = 'none';
+      updateAll();
+      showMsg('추천 완료', false);
     }
 
-    document.getElementById('suggestBtn').onclick=()=>performSuggest(500,1000);
-    document.getElementById('calcBtn').onclick=()=>calculate();
+    document.getElementById('suggestBtn').onclick = () => performSuggest(500, 1000);
+    document.getElementById('calcBtn').onclick = () => updateAll();
 
-    function calculate(){showMsg('');let evSum=0,pSum=0;[...tbody.querySelectorAll('tr')].forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value)||0;const p=parseFloat(tr.querySelector('.prob-cell').value)||0;evSum+=v*(p/100);pSum+=p;});document.getElementById('evDisplay').textContent=`기댓값 ≈ ${evSum.toFixed(4)}, Σp ≈ ${pSum.toFixed(2)}%`;}  
+    // 실시간 EV, Σp 계산
+    function updateSum() {
+      let sum = 0;
+      document.querySelectorAll('.prob-cell').forEach(i => sum += parseFloat(i.value) || 0);
+      sumDisplay.textContent = `Σp ≈ ${sum.toFixed(2)}%`;
+    }
+    function updateEV() {
+      let evSum = 0;
+      document.querySelectorAll('tr').forEach(tr => {
+        const v = parseFloat(tr.querySelector('.value-cell').value) || 0;
+        const p = parseFloat(tr.querySelector('.prob-cell').value) || 0;
+        evSum += v * (p/100);
+      });
+      evDisplay.textContent = `기댓값 ≈ ${evSum.toFixed(4)}`;
+    }
+    function updateAll() {
+      updateEV(); updateSum();
+    }
 
-    function copyProb(btn){const inp=btn.previousElementSibling;const text=inp.value+'%';navigator.clipboard.writeText(text).then(()=>showMsg(`복사됨: ${text}`,false));}
-    document.getElementById('copyAllBtn').onclick=()=>{let text='';[...tbody.querySelectorAll('tr')].forEach(tr=>{text+=`${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;});navigator.clipboard.writeText(text).then(()=>showMsg('전체 복사 완료',false));};
+    // 확률 입력시 실시간 업데이트
+    function attachProbListeners() {
+      document.querySelectorAll('.prob-cell').forEach(i => {
+        i.oninput = updateSum;
+      });
+    }
+    // 초기 및 다이내믹
+    attachProbListeners();
+    new MutationObserver(attachProbListeners).observe(tbody, { childList: true });
+
+    function copyProb(btn) {
+      const inp = btn.previousElementSibling;
+      const text = inp.value + '%';
+      navigator.clipboard.writeText(text).then(() => showMsg(`복사됨: ${text}`, false));
+    }
+    document.getElementById('copyAllBtn').onclick = () => {
+      let text = '';
+      [...tbody.querySelectorAll('tr')].forEach(tr => {
+        text += `${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;
+      });
+      navigator.clipboard.writeText(text).then(() => showMsg('전체 복사 완료', false));
+    };
+
   </script></body>
 </html>
