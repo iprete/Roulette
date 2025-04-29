@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html lang="ko">
+<!DOCTYPE html><html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Roulette 기대값 조정기</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>body { font-family: system-ui, sans-serif; }</style>
@@ -11,91 +10,44 @@
   <div class="max-w-3xl mx-auto bg-white shadow rounded-lg overflow-hidden">
     <header class="px-6 py-4 border-b bg-white">
       <h1 class="text-2xl font-bold">Roulette 기대값 조정기</h1>
-      <p class="text-gray-600 text-sm">
-        값 추가·삭제, 고정 확률 설정 후<br>
-        목표 EV와 허용 오차를 설정하고 확률 추천을 실행하세요.
-      </p>
+      <p class="text-gray-600 text-sm">값 추가·삭제, 고정 확률 설정 후<br>목표 EV와 허용 오차를 설정하고 확률 추천을 실행하세요.</p>
     </header>
     <main class="p-6 space-y-4">
       <div class="flex flex-wrap gap-2">
-        <button id="addRow" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-          값 추가
-        </button>
-        <button id="normBtn" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">
-          정규화
-        </button>
-        <button id="suggestBtn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-          확률 추천
-        </button>
-        <button id="calcBtn" class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600">
-          계산
-        </button>
-      </div>
+        <button id="addRow" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">값 추가</button>
+        <button id="normBtn" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">정규화</button>
+        <button id="suggestBtn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">확률 추천</button>
+        <button id="calcBtn" class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600">계산</button>
+      </div><section id="msg" class="text-sm"></section>
+  <progress id="progressBar" max="100" value="0" class="w-full h-2 bg-gray-200 rounded" style="display:none;"></progress>
+  <div id="progressText" class="text-sm text-gray-600" style="display:none;"></div>
 
-      <section id="msg" class="text-sm"></section>
-      <progress id="progressBar" max="100" value="0"
-        class="w-full h-2 bg-gray-200 rounded" style="display:none;"></progress>
-      <div id="progressText" class="text-sm text-gray-600" style="display:none;"></div>
-
-      <div class="overflow-x-auto">
-        <table id="dataTable" class="w-full text-sm table-auto border-collapse">
-          <thead>
-            <tr class="bg-gray-200">
-              <th class="border px-2 py-1">값</th>
-              <th class="border px-2 py-1">확률(%)</th>
-              <th class="border px-2 py-1">고정</th>
-              <th class="border px-2 py-1">삭제</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="border px-2 py-1">
-                <input type="number" value="0"
-                  class="w-20 border rounded p-1 value-cell"/>
-              </td>
-              <td class="border px-2 py-1">
-                <div class="flex items-center space-x-1">
-                  <input type="number" step="0.01" value="10.00"
-                    class="w-20 border rounded p-1 prob-cell"/>
-                  <button onclick="copyProb(this)"
-                    class="text-gray-500 hover:text-gray-700 text-sm">📋</button>
-                </div>
-              </td>
-              <td class="border px-2 py-1 text-center">
-                <input type="checkbox" class="fixed-cell" checked/>
-              </td>
-              <td class="border px-2 py-1 text-center">
-                <button class="delRow text-red-500 hover:text-red-700">✕</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="flex gap-4">
-        <div>
-          <label class="block text-sm font-medium">목표 EV</label>
-          <input id="targetEV" type="number" value="4.85" step="0.01"
-            class="border rounded p-1 w-24"/>
-        </div>
-        <div>
-          <label class="block text-sm font-medium">허용 오차</label>
-          <input id="tolerance" type="number" value="0.15" step="0.01"
-            class="border rounded p-1 w-24"/>
-        </div>
-      </div>
-      <div class="flex items-center space-x-4">
-        <div id="evDisplay" class="text-sm text-gray-700"></div>
-        <div id="sumDisplay" class="text-sm text-gray-700"></div>
-        <button id="copyAllBtn"
-          class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">
-          전체 복사
-        </button>
-      </div>
-    </main>
+  <div class="overflow-x-auto">
+    <table id="dataTable" class="w-full text-sm table-auto border-collapse">
+      <thead><tr class="bg-gray-200"><th class="border px-2 py-1">값</th><th class="border px-2 py-1">확률(%)</th><th class="border px-2 py-1">고정</th><th class="border px-2 py-1">삭제</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="border px-2 py-1"><input type="number" value="0" class="w-20 border rounded p-1 value-cell"></td>
+          <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" value="10.00" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+          <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell" checked></td>
+          <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <script>
+  <div class="flex gap-4">
+    <div><label class="block text-sm font-medium">목표 EV</label><input id="targetEV" type="number" value="4.85" step="0.01" class="border rounded p-1 w-24"></div>
+    <div><label class="block text-sm font-medium">허용 오차</label><input id="tolerance" type="number" value="0.15" step="0.01" class="border rounded p-1 w-24"></div>
+  </div>
+  <div class="flex items-center space-x-4">
+    <div id="evDisplay" class="text-sm text-gray-700"></div>
+    <div id="sumDisplay" class="text-sm text-gray-700"></div>
+    <button id="copyAllBtn" class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">전체 복사</button>
+  </div>
+</main>
+
+  </div>  <script>
     const tbody = document.querySelector('#dataTable tbody');
     const msgEl = document.getElementById('msg');
     const progressBar = document.getElementById('progressBar');
@@ -103,209 +55,35 @@
     const evDisplay = document.getElementById('evDisplay');
     const sumDisplay = document.getElementById('sumDisplay');
 
-    // 행 추가/삭제
+    function addRowHTML(){
+      return `<td class="border px-2 py-1"><input type="number" class="w-20 border rounded p-1 value-cell"></td>
+        <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+        <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell"></td>
+        <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;
+    }
+
     document.getElementById('addRow').onclick = () => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="border px-2 py-1">
-          <input type="number"
-            class="w-20 border rounded p-1 value-cell"/>
-        </td>
-        <td class="border px-2 py-1">
-          <div class="flex items-center space-x-1">
-            <input type="number" step="0.01"
-              class="w-20 border rounded p-1 prob-cell"/>
-            <button onclick="copyProb(this)"
-              class="text-gray-500 hover:text-gray-700 text-sm">
-              📋
-            </button>
-          </div>
-        </td>
-        <td class="border px-2 py-1 text-center">
-          <input type="checkbox" class="fixed-cell"/>
-        </td>
-        <td class="border px-2 py-1 text-center">
-          <button class="delRow text-red-500 hover:text-red-700">✕</button>
-        </td>`;
-      tbody.appendChild(tr);
-      attachProbListeners();
-      updateAll();
-    };
-    tbody.onclick = e => {
-      if (e.target.classList.contains('delRow')) {
-        e.target.closest('tr').remove();
-        updateAll();
-      }
-    };
+      const tr=document.createElement('tr'); tr.innerHTML=addRowHTML(); tbody.appendChild(tr); attachProbListeners(); updateAll(); };
+    tbody.onclick=e=>{ if(e.target.classList.contains('delRow')){ e.target.closest('tr').remove(); updateAll(); } };
 
-    // 메세지
-    function showMsg(text, isError = true) {
-      msgEl.textContent = text;
-      msgEl.style.color = isError ? '#cc0000' : '#008800';
-    }
+    function showMsg(t,err=true){ msgEl.textContent=t; msgEl.style.color=err?'#c00':'#080'; }
 
-    // 정규화
-    document.getElementById('normBtn').onclick = () => {
-      let sum = 0;
-      document.querySelectorAll('.prob-cell')
-        .forEach(i => sum += parseFloat(i.value) || 0);
-      if (sum <= 0) {
-        showMsg('정규화할 확률이 없습니다.');
-        return;
-      }
-      document.querySelectorAll('.prob-cell')
-        .forEach(i => i.value = ((parseFloat(i.value)||0)/sum*100)
-                           .toFixed(2));
-      showMsg('정규화 완료', false);
-      updateAll();
-    };
+    document.getElementById('normBtn').onclick=()=>{ let s=0; document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0); if(s<=0){showMsg('정규화할 확률이 없습니다.');return;} document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/s*100).toFixed(2)); showMsg('정규화 완료',false); updateAll(); };
 
-    // GA 최적화
-    function geneticOptimize(vals, p0, targetEV, popSize, gens, tol) {
-      let pop = Array.from({ length: popSize },
-                   () => Math.random()*0.98+0.01);
-      let bestQ = pop[0], bestDiff = Infinity;
-      for (let g=0; g<gens; g++) {
-        const fitness = pop.map(q => {
-          const a = (1-p0)*(1-q)/(1-Math.pow(q,vals.length));
-          const ev = vals.reduce((s,v,i)=>
-            s + a*Math.pow(q,i)*v, 0);
-          return {q, ev, diff: Math.abs(ev-targetEV)};
-        }).sort((a,b)=>a.diff-b.diff);
-        if (fitness[0].diff < bestDiff) {
-          bestDiff = fitness[0].diff;
-          bestQ = fitness[0].q;
-        }
-        if (bestDiff <= tol) break;
-        // 진행도 표시
-        const pct = Math.round((g+1)/gens*100);
-        progressBar.style.display='block';
-        progressText.style.display='block';
-        progressBar.value = pct;
-        progressText.textContent = `진행도: ${g+1}/${gens}`;
-        // 선택+교배
-        const survivors = fitness.slice(0,
-                          Math.ceil(popSize*0.2))
-                          .map(f=>f.q);
-        pop = [];
-        while (pop.length < popSize) {
-          let p1 = survivors[
-            Math.floor(Math.random()*survivors.length)];
-          let p2 = survivors[
-            Math.floor(Math.random()*survivors.length)];
-          let child = (p1+p2)/2;
-          if (Math.random()<0.1)
-            child += (Math.random()*0.2-0.1);
-          child = Math.min(Math.max(child,
-                        0.0001),0.9999);
-          pop.push(child);
-        }
-      }
-      return bestQ;
-    }
+    function geneticOptimize(vals,p0,targetEV,pop,gens,tol){ let popArr=Array.from({length:pop},()=>Math.random()*0.98+0.01),bestQ=popArr[0],best=Infinity; for(let g=0;g<gens;g++){ const fit=popArr.map(q=>{const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length)); const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0); return{q,diff:Math.abs(ev-targetEV)};}).sort((a,b)=>a.diff-b.diff); if(fit[0].diff<best){best=fit[0].diff;bestQ=fit[0].q;} if(best<=tol) break; const pct=Math.round((g+1)/gens*100); progressBar.style.display='block';progressText.style.display='block';progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`; const surv=fit.slice(0,Math.ceil(pop*0.2)).map(f=>f.q); popArr=[]; while(popArr.length<pop){ let c=(surv[Math.random()*surv.length|0]+surv[Math.random()*surv.length|0])/2; if(Math.random()<0.1) c+=Math.random()*0.2-0.1; c=Math.min(Math.max(c,0.0001),0.9999); popArr.push(c);} } return bestQ; }
 
-    // 확률 추천
-    function performSuggest(popSize, gens) {
-      showMsg('');
-      evDisplay.textContent = '';
-      sumDisplay.textContent = '';
-      const targetEV = parseFloat(
-        document.getElementById('targetEV').value);
-      const tol = parseFloat(
-        document.getElementById('tolerance').value);
-      const rows = [...tbody.querySelectorAll('tr')];
-      const fixed = [], vals = [];
-      rows.forEach(tr => {
-        const v = parseFloat(
-          tr.querySelector('.value-cell').value);
-        const p = (parseFloat(
-          tr.querySelector('.prob-cell').value)||0)/100;
-        if (tr.querySelector('.fixed-cell').checked)
-          fixed.push({v,p});
-        else vals.push(v);
-      });
-      const p0 = (fixed.find(r=>r.v===0)?.p)||0;
-      if (!vals.length) {
-        showMsg('추천할 값이 없습니다.');
-        return;
-      }
-      const q = geneticOptimize(
-        vals, p0, targetEV, popSize, gens, tol);
-      const a = (1-p0)*(1-q)/(1-Math.pow(q,vals.length));
-      let prefs = vals.map((v,i)=>
-        parseFloat((a*Math.pow(q,i)*100).toFixed(2)));
-      const fixedSum = fixed.reduce((s,r)=>s+r.p,0)*100;
-      const sumP = prefs.reduce((s,p)=>s+p,0);
-      const adjust = 100-fixedSum-sumP;
-      if (prefs.length) prefs[0]+=adjust;
-      let idx = 0;
-      rows.forEach(tr => {
-        if (!tr.querySelector('.fixed-cell').checked) {
-          tr.querySelector('.prob-cell').value =
-            prefs[idx++].toFixed(2);
-        }
-      });
-      progressBar.style.display='none';
-      progressText.style.display='none';
-      updateAll();
-      showMsg('추천 완료', false);
-    }
+    function performSuggest(pop,gens){ showMsg(''); const targetEV=parseFloat(document.getElementById('targetEV').value); const tol=parseFloat(document.getElementById('tolerance').value); const rows=[...tbody.querySelectorAll('tr')]; const fixed=[],vals=[]; rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value); const p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100; if(tr.querySelector('.fixed-cell').checked) fixed.push({v,p}); else vals.push(v);}); const p0=(fixed.find(r=>r.v===0)?.p)||0; if(!vals.length){showMsg('추천할 값이 없습니다.');return;} const q=geneticOptimize(vals,p0,targetEV,pop,gens,tol); const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length)); const raw=prefsRaw=vals.map((v,i)=>a*Math.pow(q,i)*100); const needThree=raw.some(p=>p<0.01); const dec=needThree?3:2; let prefs=raw.map(p=>{let val=parseFloat(p.toFixed(dec)); if(needThree&&val===0) val=0.001; return val;}); const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100; const sumP=prefs.reduce((s,p)=>s+p,0); const adjust=100-fixedSum-sumP; if(prefs.length) prefs[0]+=adjust; let idx=0; rows.forEach(tr=>{ if(!tr.querySelector('.fixed-cell').checked){ tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec); } }); progressBar.style.display='none';progressText.style.display='none'; updateAll(); showMsg('추천 완료',false); }
 
-    document.getElementById('suggestBtn')
-      .onclick = () => performSuggest(500,1000);
-    document.getElementById('calcBtn')
-      .onclick = () => updateAll();
+    document.getElementById('suggestBtn').onclick=()=>performSuggest(500,1000); document.getElementById('calcBtn').onclick=()=>updateAll();
 
-    // 실시간 Σp, EV 계산
-    function updateSum() {
-      let sum = 0;
-      document.querySelectorAll('.prob-cell')
-        .forEach(i=> sum+=parseFloat(i.value)||0);
-      sumDisplay.textContent = `Σp ≈ ${sum.toFixed(2)}%`;
-    }
-    function updateEV() {
-      let ev=0;
-      document.querySelectorAll('tr').forEach(tr=>{
-        const v=parseFloat(
-          tr.querySelector('.value-cell').value)||0;
-        const p=parseFloat(
-          tr.querySelector('.prob-cell').value)||0;
-        ev += v*(p/100);
-      });
-      evDisplay.textContent = `기댓값 ≈ ${ev.toFixed(4)}`;
-    }
-    function updateAll() {
-      updateEV();
-      updateSum();
-    }
+    function updateSum(){ let s=0; document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0); sumDisplay.textContent=`Σp ≈ ${s.toFixed(3)}%`; }
+    function updateEV(){ let e=0; document.querySelectorAll('tr').forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value)||0; const p=parseFloat(tr.querySelector('.prob-cell').value)||0; e+=v*(p/100);}); evDisplay.textContent=`기댓값 ≈ ${e.toFixed(4)}`; }
+    function updateAll(){ updateEV(); updateSum(); }
 
-    function attachProbListeners() {
-      document.querySelectorAll('.prob-cell')
-        .forEach(i=> i.oninput = updateSum);
-    }
-    attachProbListeners();
+    function attachProbListeners(){ document.querySelectorAll('.prob-cell').forEach(i=> i.oninput=updateSum); }
+    attachProbListeners(); window.addEventListener('DOMContentLoaded',updateAll);
 
-    // 초기 한 번
-    window.addEventListener('DOMContentLoaded', updateAll);
-
-    // 복사 기능
-    function copyProb(btn) {
-      const inp = btn.previousElementSibling;
-      const text = inp.value + '%';
-      navigator.clipboard.writeText(text)
-        .then(()=>showMsg(`복사됨: ${text}`, false));
-    }
-    document.getElementById('copyAllBtn')
-      .onclick = () => {
-      let text = '';
-      [...tbody.querySelectorAll('tr')]
-        .forEach(tr=>{
-          text += `${tr.querySelector('.value-cell').value}: ` +
-                  `${tr.querySelector('.prob-cell').value}%\n`;
-        });
-      navigator.clipboard.writeText(text)
-        .then(()=> showMsg('전체 복사 완료', false));
-    };
-  </script>
-</body>
+    function copyProb(btn){ const t=btn.previousElementSibling.value+'%'; navigator.clipboard.writeText(t).then(()=>showMsg(`복사됨: ${t}`,false)); }
+    document.getElementById('copyAllBtn').onclick=()=>{ let txt=''; [...tbody.querySelectorAll('tr')].forEach(tr=>{txt+=`${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;}); navigator.clipboard.writeText(txt).then(()=>showMsg('전체 복사 완료',false)); };
+  </script></body>
 </html>
