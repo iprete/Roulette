@@ -4,7 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Roulette 기대값 조정기</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body { font-family: system-ui, sans-serif; }</style>
+  <style>body{font-family:system-ui,sans-serif}</style>
 </head>
 <body class="bg-gray-100 min-h-screen p-4">
   <div class="max-w-3xl mx-auto bg-white shadow rounded-lg overflow-hidden">
@@ -24,11 +24,13 @@
 
   <div class="overflow-x-auto">
     <table id="dataTable" class="w-full text-sm table-auto border-collapse">
-      <thead><tr class="bg-gray-200"><th class="border px-2 py-1">값</th><th class="border px-2 py-1">확률(%)</th><th class="border px-2 py-1">고정</th><th class="border px-2 py-1">삭제</th></tr></thead>
+      <thead>
+        <tr class="bg-gray-200"><th class="border px-2 py-1">값</th><th class="border px-2 py-1">확률(%)</th><th class="border px-2 py-1">고정</th><th class="border px-2 py-1">삭제</th></tr>
+      </thead>
       <tbody>
         <tr>
           <td class="border px-2 py-1"><input type="number" value="0" class="w-20 border rounded p-1 value-cell"></td>
-          <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" value="10.00" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+          <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" value="10.000" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
           <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell" checked></td>
           <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>
         </tr>
@@ -47,43 +49,40 @@
   </div>
 </main>
 
-  </div>  <script>
-    const tbody = document.querySelector('#dataTable tbody');
-    const msgEl = document.getElementById('msg');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    const evDisplay = document.getElementById('evDisplay');
-    const sumDisplay = document.getElementById('sumDisplay');
+  </div><script>
+const tbody=document.querySelector('#dataTable tbody');
+const msgEl=document.getElementById('msg');
+const progressBar=document.getElementById('progressBar');
+const progressText=document.getElementById('progressText');
+const evDisplay=document.getElementById('evDisplay');
+const sumDisplay=document.getElementById('sumDisplay');
 
-    function addRowHTML(){
-      return `<td class="border px-2 py-1"><input type="number" class="w-20 border rounded p-1 value-cell"></td>
-        <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
-        <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell"></td>
-        <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;
-    }
+function addRow(){const tr=document.createElement('tr');tr.innerHTML=rowHTML();tbody.appendChild(tr);attachProbListeners();updateAll();}
+function rowHTML(){return`<td class="border px-2 py-1"><input type="number" class="w-20 border rounded p-1 value-cell"></td><td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td><td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell"></td><td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;}
 
-    document.getElementById('addRow').onclick = () => {
-      const tr=document.createElement('tr'); tr.innerHTML=addRowHTML(); tbody.appendChild(tr); attachProbListeners(); updateAll(); };
-    tbody.onclick=e=>{ if(e.target.classList.contains('delRow')){ e.target.closest('tr').remove(); updateAll(); } };
+document.getElementById('addRow').onclick=addRow;
 
-    function showMsg(t,err=true){ msgEl.textContent=t; msgEl.style.color=err?'#c00':'#080'; }
+tbody.onclick=e=>{if(e.target.classList.contains('delRow')){e.target.closest('tr').remove();updateAll();}}
 
-    document.getElementById('normBtn').onclick=()=>{ let s=0; document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0); if(s<=0){showMsg('정규화할 확률이 없습니다.');return;} document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/s*100).toFixed(2)); showMsg('정규화 완료',false); updateAll(); };
+function showMsg(t,err=true){msgEl.textContent=t;msgEl.style.color=err?'#c00':'#080';}
 
-    function geneticOptimize(vals,p0,targetEV,pop,gens,tol){ let popArr=Array.from({length:pop},()=>Math.random()*0.98+0.01),bestQ=popArr[0],best=Infinity; for(let g=0;g<gens;g++){ const fit=popArr.map(q=>{const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length)); const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0); return{q,diff:Math.abs(ev-targetEV)};}).sort((a,b)=>a.diff-b.diff); if(fit[0].diff<best){best=fit[0].diff;bestQ=fit[0].q;} if(best<=tol) break; const pct=Math.round((g+1)/gens*100); progressBar.style.display='block';progressText.style.display='block';progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`; const surv=fit.slice(0,Math.ceil(pop*0.2)).map(f=>f.q); popArr=[]; while(popArr.length<pop){ let c=(surv[Math.random()*surv.length|0]+surv[Math.random()*surv.length|0])/2; if(Math.random()<0.1) c+=Math.random()*0.2-0.1; c=Math.min(Math.max(c,0.0001),0.9999); popArr.push(c);} } return bestQ; }
+document.getElementById('normBtn').onclick=()=>{let s=0;document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0);if(s<=0){showMsg('정규화할 확률이 없습니다.');return;}document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/s*100).toFixed(3));showMsg('정규화 완료',false);updateAll();}
 
-    function performSuggest(pop,gens){ showMsg(''); const targetEV=parseFloat(document.getElementById('targetEV').value); const tol=parseFloat(document.getElementById('tolerance').value); const rows=[...tbody.querySelectorAll('tr')]; const fixed=[],vals=[]; rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value); const p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100; if(tr.querySelector('.fixed-cell').checked) fixed.push({v,p}); else vals.push(v);}); const p0=(fixed.find(r=>r.v===0)?.p)||0; if(!vals.length){showMsg('추천할 값이 없습니다.');return;} const q=geneticOptimize(vals,p0,targetEV,pop,gens,tol); const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length)); const raw=prefsRaw=vals.map((v,i)=>a*Math.pow(q,i)*100); const needThree=raw.some(p=>p<0.01); const dec=needThree?3:2; let prefs=raw.map(p=>{let val=parseFloat(p.toFixed(dec)); if(needThree&&val===0) val=0.001; return val;}); const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100; const sumP=prefs.reduce((s,p)=>s+p,0); const adjust=100-fixedSum-sumP; if(prefs.length) prefs[0]+=adjust; let idx=0; rows.forEach(tr=>{ if(!tr.querySelector('.fixed-cell').checked){ tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec); } }); progressBar.style.display='none';progressText.style.display='none'; updateAll(); showMsg('추천 완료',false); }
+function geneticOptimize(vals,p0,targetEV,pop,gens,tol){let popArr=Array.from({length:pop},()=>Math.random()*0.98+0.01),bestQ=popArr[0],best=Infinity;for(let g=0;g<gens;g++){const fit=popArr.map(q=>{const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0);return{q,diff:Math.abs(ev-targetEV)}}).sort((a,b)=>a.diff-b.diff);if(fit[0].diff<best){best=fit[0].diff;bestQ=fit[0].q;}if(best<=tol)break;const pct=Math.round((g+1)/gens*100);progressBar.style.display='block';progressText.style.display='block';progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`;const surv=fit.slice(0,Math.ceil(pop*0.2)).map(f=>f.q);popArr=[];while(popArr.length<pop){let c=(surv[Math.random()*surv.length|0]+surv[Math.random()*surv.length|0])/2;if(Math.random()<0.1)c+=Math.random()*0.2-0.1;c=Math.min(Math.max(c,0.0001),0.9999);popArr.push(c);}}return bestQ;}
 
-    document.getElementById('suggestBtn').onclick=()=>performSuggest(500,1000); document.getElementById('calcBtn').onclick=()=>updateAll();
+function performSuggest(pop,gens){showMsg('');const targetEV=parseFloat(document.getElementById('targetEV').value);const tol=parseFloat(document.getElementById('tolerance').value);const rows=[...tbody.querySelectorAll('tr')];const fixed=[],vals=[];rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value);const p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100;if(tr.querySelector('.fixed-cell').checked)fixed.push({v,p});else vals.push(v);});const p0=(fixed.find(r=>r.v===0)?.p)||0;if(!vals.length){showMsg('추천할 값이 없습니다.');return;}const q=geneticOptimize(vals,p0,targetEV,pop,gens,tol);const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const raw=vals.map((v,i)=>a*Math.pow(q,i)*100);const need3=raw.some(p=>p<0.01);const dec=need3?3:2;let prefs=raw.map(p=>{let val=parseFloat(p.toFixed(dec));if(need3&&val===0)val=0.001;return val;});const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100;const sumP=prefs.reduce((s,p)=>s+p,0);const adjust=100-fixedSum-sumP;if(prefs.length)prefs[0]+=adjust;let idx=0;rows.forEach(tr=>{if(!tr.querySelector('.fixed-cell').checked){tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec);}});progressBar.style.display='none';progressText.style.display='none';updateAll();showMsg('추천 완료',false);}
 
-    function updateSum(){ let s=0; document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0); sumDisplay.textContent=`Σp ≈ ${s.toFixed(3)}%`; }
-    function updateEV(){ let e=0; document.querySelectorAll('tr').forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value)||0; const p=parseFloat(tr.querySelector('.prob-cell').value)||0; e+=v*(p/100);}); evDisplay.textContent=`기댓값 ≈ ${e.toFixed(4)}`; }
-    function updateAll(){ updateEV(); updateSum(); }
+document.getElementById('suggestBtn').onclick=()=>performSuggest(500,1000);
+document.getElementById('calcBtn').onclick=updateAll;
 
-    function attachProbListeners(){ document.querySelectorAll('.prob-cell').forEach(i=> i.oninput=updateSum); }
-    attachProbListeners(); window.addEventListener('DOMContentLoaded',updateAll);
+function updateSum(){let sum=0;document.querySelectorAll('.prob-cell').forEach(i=>sum+=parseFloat(i.value)||0);sumDisplay.textContent=`Σp ≈ ${sum.toFixed(3)}%`;}
+function updateEV(){let ev=0;document.querySelectorAll('#dataTable tbody tr').forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value)||0;const p=parseFloat(tr.querySelector('.prob-cell').value)||0;ev+=v*(p/100);});evDisplay.textContent=`기댓값 ≈ ${ev.toFixed(4)}`;}
+function updateAll(){updateEV();updateSum();}
 
-    function copyProb(btn){ const t=btn.previousElementSibling.value+'%'; navigator.clipboard.writeText(t).then(()=>showMsg(`복사됨: ${t}`,false)); }
-    document.getElementById('copyAllBtn').onclick=()=>{ let txt=''; [...tbody.querySelectorAll('tr')].forEach(tr=>{txt+=`${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;}); navigator.clipboard.writeText(txt).then(()=>showMsg('전체 복사 완료',false)); };
-  </script></body>
+function attachProbListeners(){document.querySelectorAll('.prob-cell').forEach(i=>i.oninput=updateAll);}attachProbListeners();
+window.addEventListener('DOMContentLoaded',updateAll);
+
+function copyProb(btn){const t=btn.previousElementSibling.value+'%';navigator.clipboard.writeText(t).then(()=>showMsg(`복사됨: ${t}`,false));}
+document.getElementById('copyAllBtn').onclick=()=>{let txt='';[...tbody.querySelectorAll('tr')].forEach(tr=>{txt+=`${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;});navigator.clipboard.writeText(txt).then(()=>showMsg('전체 복사 완료',false));};
+</script></body>
 </html>
