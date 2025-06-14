@@ -57,22 +57,71 @@ const progressText=document.getElementById('progressText');
 const evDisplay=document.getElementById('evDisplay');
 const sumDisplay=document.getElementById('sumDisplay');
 
-function addRow(){const tr=document.createElement('tr');tr.innerHTML=rowHTML();tbody.appendChild(tr);attachProbListeners();updateAll();}
 function rowHTML(){return`<td class="border px-2 py-1"><input type="number" class="w-20 border rounded p-1 value-cell"></td><td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td><td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell"></td><td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;}
 
-document.getElementById('addRow').onclick=addRow;
+document.getElementById('addRow').onclick=()=>{const tr=document.createElement('tr');tr.innerHTML=rowHTML();tbody.appendChild(tr);attachProbListeners();updateAll();};
 
 tbody.onclick=e=>{if(e.target.classList.contains('delRow')){e.target.closest('tr').remove();updateAll();}}
 
 function showMsg(t,err=true){msgEl.textContent=t;msgEl.style.color=err?'#c00':'#080';}
 
-document.getElementById('normBtn').onclick=()=>{let s=0;document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0);if(s<=0){showMsg('정규화할 확률이 없습니다.');return;}document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/s*100).toFixed(3));showMsg('정규화 완료',false);updateAll();}
+document.getElementById('normBtn').onclick=()=>{let s=0;document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0);if(s<=0){showMsg('정규화할 확률이 없습니다.');return;}document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/s*100).toFixed(3));showMsg('정규화 완료',false);updateAll();};
 
-function geneticOptimize(vals,p0,targetEV,pop,gens,tol){let popArr=Array.from({length:pop},()=>Math.random()*0.98+0.01),bestQ=popArr[0],best=Infinity;for(let g=0;g<gens;g++){const fit=popArr.map(q=>{const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0);return{q,diff:Math.abs(ev-targetEV)}}).sort((a,b)=>a.diff-b.diff);if(fit[0].diff<best){best=fit[0].diff;bestQ=fit[0].q;}if(best<=tol)break;const pct=Math.round((g+1)/gens*100);progressBar.style.display='block';progressText.style.display='block';progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`;const surv=fit.slice(0,Math.ceil(pop*0.2)).map(f=>f.q);popArr=[];while(popArr.length<pop){let c=(surv[Math.random()*surv.length|0]+surv[Math.random()*surv.length|0])/2;if(Math.random()<0.1)c+=Math.random()*0.2-0.1;c=Math.min(Math.max(c,0.0001),0.9999);popArr.push(c);}}return bestQ;}
+// --- GA 업그레이드 ---
+function geneticOptimize(vals,p0,targetEV,popSize,gens,tol){
+  // 초기 개체군
+  let pop=Array.from({length:popSize},()=>Math.random()*0.98+0.01);
+  let bestQ=pop[0],bestDiff=Infinity;
+  for(let g=0;g<gens;g++){
+    // 적합도 계산 (lower diff better)
+    const fitness=pop.map(q=>{
+      const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));
+      const ev=vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0);
+      return{q,ev,diff:Math.abs(ev-targetEV)};
+    }).sort((a,b)=>a.diff-b.diff);
 
-function performSuggest(pop,gens){showMsg('');const targetEV=parseFloat(document.getElementById('targetEV').value);const tol=parseFloat(document.getElementById('tolerance').value);const rows=[...tbody.querySelectorAll('tr')];const fixed=[],vals=[];rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value);const p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100;if(tr.querySelector('.fixed-cell').checked)fixed.push({v,p});else vals.push(v);});const p0=(fixed.find(r=>r.v===0)?.p)||0;if(!vals.length){showMsg('추천할 값이 없습니다.');return;}const q=geneticOptimize(vals,p0,targetEV,pop,gens,tol);const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const raw=vals.map((v,i)=>a*Math.pow(q,i)*100);const need3=raw.some(p=>p<0.01);const dec=need3?3:2;let prefs=raw.map(p=>{let val=parseFloat(p.toFixed(dec));if(need3&&val===0)val=0.001;return val;});const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100;const sumP=prefs.reduce((s,p)=>s+p,0);const adjust=100-fixedSum-sumP;if(prefs.length)prefs[0]+=adjust;let idx=0;rows.forEach(tr=>{if(!tr.querySelector('.fixed-cell').checked){tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec);}});progressBar.style.display='none';progressText.style.display='none';updateAll();showMsg('추천 완료',false);}
+    // 최고 개체 업데이트
+    if(fitness[0].diff<bestDiff){bestDiff=fitness[0].diff;bestQ=fitness[0].q;}
+    if(bestDiff<=tol)break;
 
-document.getElementById('suggestBtn').onclick=()=>performSuggest(500,1000);
+    // 진행도 표시
+    const pct=Math.round((g+1)/gens*100);
+    progressBar.style.display='block';progressText.style.display='block';
+    progressBar.value=pct;progressText.textContent=`진행도: ${g+1}/${gens}`;
+
+    // **엘리트 보존** (top 1%)
+    const elites=fitness.slice(0,Math.max(1,Math.floor(popSize*0.01))).map(f=>f.q);
+
+    // **선택** 상위 15% 풀
+    const pool=fitness.slice(0,Math.ceil(popSize*0.15)).map(f=>f.q);
+
+    // 새 개체군 생성
+    const next=[];
+    // 1) 엘리트 그대로 복사
+    next.push(...elites);
+    // 2) 교배 + 변이
+    while(next.length<popSize){
+      const p1=pool[Math.random()*pool.length|0];
+      const p2=pool[Math.random()*pool.length|0];
+      let child=(p1+p2)/2;
+      // 적응형 변이: 세대가 진행될수록 범위 축소
+      const mutRate=0.05; // 5%
+      const mutRange=0.1*(1-g/gens); // 초기 0.1 → 0
+      if(Math.random()<mutRate) child+= (Math.random()*2-1)*mutRange;
+      child=Math.min(Math.max(child,0.0001),0.9999);
+      next.push(child);
+    }
+    pop=next;
+  }
+  progressBar.style.display='none';progressText.style.display='none';
+  return bestQ;
+}
+// --------------------
+
+function performSuggest(pop,gens){showMsg('');const targetEV=parseFloat(document.getElementById('targetEV').value);const tol=parseFloat(document.getElementById('tolerance').value);const rows=[...tbody.querySelectorAll('tr')];const fixed=[],vals=[];rows.forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value);const p=(parseFloat(tr.querySelector('.prob-cell').value)||0)/100;if(tr.querySelector('.fixed-cell').checked)fixed.push({v,p});else vals.push(v);});const p0=(fixed.find(r=>r.v===0)?.p)||0;if(!vals.length){showMsg('추천할 값이 없습니다.');return;}const q=geneticOptimize(vals,p0,targetEV,pop,gens,tol);const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const raw=vals.map((v,i)=>a*Math.pow(q,i)*100);const need3=raw.some(p=>p<0.01);const dec=need3?3:2;let prefs=raw.map(p=>{let val=parseFloat(p.toFixed(dec));if(need3&&val===0)val=0.001;return val;});const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100;const sumP=prefs.reduce((s,p)=>s+p,0);const adjust=100-fixedSum-sumP;if(prefs.length)prefs[0]+=adjust;let idx=0;rows.forEach(tr=>{if(!tr.querySelector('.fixed-cell').checked){tr.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec);}});updateAll();showMsg('추천 완료',false);}
+
+// 개체·세대 3배 (1500, 3000)
+document.getElementById('suggestBtn').onclick=()=>performSuggest(1500,3000);
 document.getElementById('calcBtn').onclick=updateAll;
 
 function updateSum(){let sum=0;document.querySelectorAll('.prob-cell').forEach(i=>sum+=parseFloat(i.value)||0);sumDisplay.textContent=`Σp ≈ ${sum.toFixed(3)}%`;}
