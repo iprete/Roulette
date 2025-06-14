@@ -10,6 +10,7 @@
   <div class="max-w-3xl mx-auto bg-white shadow rounded-lg overflow-hidden">
     <header class="px-6 py-4 border-b bg-white">
       <h1 class="text-2xl font-bold">Roulette 기대값 조정기</h1>
+  
     </header>
     <main class="p-6 space-y-4">
       <div class="flex flex-wrap gap-2">
@@ -44,60 +45,92 @@
   </div><script>
 const tbody=document.querySelector('#dataTable tbody');
 const msgEl=document.getElementById('msg');
-const progressBar=document.getElementById('progressBar');
-const progressText=document.getElementById('progressText');
 const evDisplay=document.getElementById('evDisplay');
 const sumDisplay=document.getElementById('sumDisplay');
 
-// 기본 행 추가
-addRow(0,10,true);
-
+//------------------------------------------------------------------
+// Row helpers
+function newRowHTML(val='',prob='',fixed=false){
+  return `<td class="border px-2 py-1"><input type="number" value="${val}" class="w-20 border rounded p-1 value-cell"></td>
+          <td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" value="${prob}" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td>
+          <td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell" ${fixed?'checked':''}></td>
+          <td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;
+}
 function addRow(val='',prob='',fixed=false){
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td class="border px-2 py-1"><input type="number" value="${val}" class="w-20 border rounded p-1 value-cell"></td><td class="border px-2 py-1"><div class="flex items-center space-x-1"><input type="number" step="0.001" value="${prob}" class="w-20 border rounded p-1 prob-cell"><button onclick="copyProb(this)" class="text-gray-500 hover:text-gray-700 text-sm">📋</button></div></td><td class="border px-2 py-1 text-center"><input type="checkbox" class="fixed-cell" ${fixed?'checked':''}></td><td class="border px-2 py-1 text-center"><button class="delRow text-red-500 hover:text-red-700">✕</button></td>`;
+  tr.innerHTML=newRowHTML(val,prob,fixed);
   tbody.appendChild(tr);
-  attachProbListener(tr.querySelector('.prob-cell'));
-  sortRows();
+  hookRow(tr);
+  resort();
   updateAll();
 }
-
-function sortRows(){
-  const rows=[...tbody.querySelectorAll('tr')].sort((a,b)=>parseFloat(a.querySelector('.value-cell').value)-parseFloat(b.querySelector('.value-cell').value));
+function hookRow(tr){
+  const v=tr.querySelector('.value-cell');
+  const p=tr.querySelector('.prob-cell');
+  v.oninput=()=>{resort();updateAll();};
+  p.oninput=updateAll;
+}
+function resort(){
+  const rows=[...tbody.querySelectorAll('tr')].sort((a,b)=>parseFloat(a.querySelector('.value-cell').value||0)-parseFloat(b.querySelector('.value-cell').value||0));
   rows.forEach(r=>tbody.appendChild(r));
 }
+//------------------------------------------------------------------
+// Initial row
+addRow(0,10,true);
+
+//------------------------------------------------------------------
+// Buttons
 
 document.getElementById('addRow').onclick=()=>addRow();
+tbody.onclick=e=>{if(e.target.classList.contains('delRow')){e.target.closest('tr').remove();updateAll();}}
 
-tbody.onclick=e=>{
-  if(e.target.classList.contains('delRow')){e.target.closest('tr').remove();updateAll();}
+// Normalization
+function normalize(){
+  let sum=0;document.querySelectorAll('.prob-cell').forEach(i=>sum+=parseFloat(i.value)||0);
+  if(sum<=0){msg('정규화할 확률이 없습니다.');return;}
+  document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/sum*100).toFixed(3));
+  resort();updateAll();msg('정규화 완료',false);
 }
+document.getElementById('normBtn').onclick=normalize;
 
-function showMsg(t,err=true){msgEl.textContent=t;msgEl.style.color=err?'#c00':'#080';}
+//------------------------------------------------------------------
+// EV calculation utilities
+function evFor(vals,p0,q){const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));return vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0);}  
+function solveQ(vals,p0,target,tol){let lo=0.0001,hi=0.9999,bQ=lo,bD=Infinity;for(let i=0;i<120;i++){const mid=(lo+hi)/2,ev=evFor(vals,p0,mid),d=Math.abs(ev-target);if(d<bD){bD=d;bQ=mid;}if(d<=tol)break;ev<target?lo=mid:hi=mid;}return bQ;}
+//------------------------------------------------------------------
+function recommend(){
+  const target=parseFloat(document.getElementById('targetEV').value);
+  const tol=parseFloat(document.getElementById('tolerance').value);
+  const rows=[...tbody.querySelectorAll('tr')];
+  const fixed=[],vals=[];
+  rows.forEach(r=>{const v=parseFloat(r.querySelector('.value-cell').value);const p=(parseFloat(r.querySelector('.prob-cell').value)||0)/100;(r.querySelector('.fixed-cell').checked?fixed:vals).push(r.querySelector('.fixed-cell').checked?{v,p}:v);});
+  if(!vals.length){msg('추천할 값이 없습니다.');return;}
+  const p0=(fixed.find(r=>r.v===0)?.p)||0;
+  const q=solveQ(vals,p0,target,tol);
+  const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));
+  let probs=vals.map((v,i)=>a*Math.pow(q,i)*100);
+  const need3=probs.some(p=>p<0.01);const dec=need3?3:2;
+  probs=probs.map(p=>Math.max(need3?0.001:0,parseFloat(p.toFixed(dec))));
+  const fixSum=fixed.reduce((s,r)=>s+r.p,0)*100;
+  const adjust=100-fixSum-probs.reduce((s,p)=>s+p,0);if(probs.length)probs[0]+=adjust;
+  let idx=0;rows.forEach(r=>{if(!r.querySelector('.fixed-cell').checked)r.querySelector('.prob-cell').value=probs[idx++].toFixed(dec);});
+  resort();updateAll();msg('추천 완료',false);
+}
+document.getElementById('suggestBtn').onclick=recommend;
 
-// 정규화
-function normalize(){let sum=0;document.querySelectorAll('.prob-cell').forEach(i=>sum+=parseFloat(i.value)||0);if(sum<=0){showMsg('정규화할 확률이 없습니다.');return;}document.querySelectorAll('.prob-cell').forEach(i=>i.value=((parseFloat(i.value)||0)/sum*100).toFixed(3));sortRows();updateAll();showMsg('정규화 완료',false);}document.getElementById('normBtn').onclick=normalize;
-
-// EV 함수
-function evFor(vals,p0,q){const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));return vals.reduce((s,v,i)=>s+a*Math.pow(q,i)*v,0);}
-
-// Bisection root finder for EV target
-function solveQ(vals,p0,targetEV,tol){let lo=0.0001,hi=0.9999;let bestQ=lo,bestDiff=Infinity;for(let i=0;i<100;i++){const mid=(lo+hi)/2;const ev=evFor(vals,p0,mid);const diff=Math.abs(ev-targetEV);if(diff<bestDiff){bestDiff=diff;bestQ=mid;}if(diff<=tol)break;ev<targetEV?lo=mid:hi=mid;}return bestQ;}
-
-// 확률 추천
-function recommend(){showMsg('');const targetEV=parseFloat(document.getElementById('targetEV').value);const tol=parseFloat(document.getElementById('tolerance').value);const rows=[...tbody.querySelectorAll('tr')];const fixed=[],vals=[];rows.forEach(r=>{const v=parseFloat(r.querySelector('.value-cell').value);const p=(parseFloat(r.querySelector('.prob-cell').value)||0)/100;(r.querySelector('.fixed-cell').checked?fixed:vals).push(r.querySelector('.fixed-cell').checked?{v,p}:v);});if(!vals.length){showMsg('추천할 값이 없습니다.');return;}const p0=(fixed.find(r=>r.v===0)?.p)||0;const q=solveQ(vals,p0,targetEV,tol);const a=(1-p0)*(1-q)/(1-Math.pow(q,vals.length));const raw=vals.map((v,i)=>a*Math.pow(q,i)*100);const need3=raw.some(p=>p<0.01);const dec=need3?3:2;let prefs=raw.map(p=>Math.max(need3?0.001:0,parseFloat(p.toFixed(dec))));const fixedSum=fixed.reduce((s,r)=>s+r.p,0)*100;const adjust=100-fixedSum-prefs.reduce((s,p)=>s+p,0);if(prefs.length)prefs[0]+=adjust;let idx=0;rows.forEach(r=>{if(!r.querySelector('.fixed-cell').checked)r.querySelector('.prob-cell').value=prefs[idx++].toFixed(dec);});sortRows();updateAll();showMsg('추천 완료',false);}
-
-document.getElementById('suggestBtn').onclick=recommend;document.getElementById('calcBtn').onclick=()=>{sortRows();updateAll();};
-
-// 실시간 표시unction updateSum(){let s=0;document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0);sumDisplay.textContent=`Σp ≈ ${s.toFixed(3)}%`;}
+document.getElementById('calcBtn').onclick=()=>{resort();updateAll();};
+//------------------------------------------------------------------
+// Display
+function updateSum(){let s=0;document.querySelectorAll('.prob-cell').forEach(i=>s+=parseFloat(i.value)||0);sumDisplay.textContent=`Σp ≈ ${s.toFixed(3)}%`;}
 function updateEV(){let ev=0;document.querySelectorAll('#dataTable tbody tr').forEach(tr=>{const v=parseFloat(tr.querySelector('.value-cell').value)||0;const p=parseFloat(tr.querySelector('.prob-cell').value)||0;ev+=v*(p/100);});evDisplay.textContent=`기댓값 ≈ ${ev.toFixed(4)}`;}
 function updateAll(){updateEV();updateSum();}
+//------------------------------------------------------------------
+function msg(t,err=true){msgEl.textContent=t;msgEl.style.color=err?'#c00':'#080';}
+//------------------------------------------------------------------
+function copyProb(btn){navigator.clipboard.writeText(btn.previousElementSibling.value+'%').then(()=>msg('복사됨',false));}
 
-function attachProbListener(inp){inp.oninput=()=>{updateAll();};}
-function attachProbListeners(){document.querySelectorAll('.prob-cell').forEach(attachProbListener);}attachProbListeners();
+document.getElementById('copyAllBtn').onclick=()=>{let t='';document.querySelectorAll('#dataTable tbody tr').forEach(r=>{t+=`${r.querySelector('.value-cell').value}: ${r.querySelector('.prob-cell').value}%\n`;});navigator.clipboard.writeText(t).then(()=>msg('전체 복사 완료',false));};
+//------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded',updateAll);
-
-function copyProb(btn){navigator.clipboard.writeText(btn.previousElementSibling.value+'%').then(()=>showMsg('복사됨',false));}
-
-document.getElementById('copyAllBtn').onclick=()=>{let t='';document.querySelectorAll('#dataTable tbody tr').forEach(tr=>{t+=`${tr.querySelector('.value-cell').value}: ${tr.querySelector('.prob-cell').value}%\n`;});navigator.clipboard.writeText(t).then(()=>showMsg('전체 복사 완료',false));};
 </script></body>
 </html>
